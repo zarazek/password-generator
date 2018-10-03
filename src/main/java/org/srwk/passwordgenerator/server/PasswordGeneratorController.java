@@ -16,7 +16,7 @@ public class PasswordGeneratorController {
     }
     if (length > MAX_PASSWORD_LENGTH) {
       throw new IllegalArgumentException(
-          String.format("Requested password too long: requeted %d, but max is %d", length, MAX_PASSWORD_LENGTH)
+          String.format("Requested password too long: requested %d, but max is %d", length, MAX_PASSWORD_LENGTH)
       );
     }
     return RandomStringUtils.randomAlphabetic(length);
