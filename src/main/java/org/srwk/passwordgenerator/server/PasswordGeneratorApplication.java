@@ -1,4 +1,4 @@
-package org.srwk.passwordgenerator;
+package org.srwk.passwordgenerator.server;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
