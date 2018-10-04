@@ -7,11 +7,11 @@ public class ClientStatistics {
   private long successes = 0;
   private long errors = 0;
 
-  public synchronized void registerSuccess() {
+  public void registerSuccess() {
     ++successes;
   }
 
-  public synchronized void registerError() {
+  public void registerError() {
     ++errors;
   }
 
