@@ -9,10 +9,10 @@ import java.net.URI;
 public class ClientOptions {
   private final URI uri;
   @Builder.Default
-  private final int numOfRequests = 1000;
+  private final int numOfRequests = 100000;
   @Builder.Default
-  private final int numOfConnections = 5;
+  private final int numOfConnections = 100;
   @Builder.Default
-  private int numOfThreads = 20;
+  private int numOfThreads = 4;
 
 }

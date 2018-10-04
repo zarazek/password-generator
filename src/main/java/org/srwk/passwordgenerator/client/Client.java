@@ -1,16 +1,24 @@
 package org.srwk.passwordgenerator.client;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
+import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
+import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.nio.reactor.ConnectingIOReactor;
+import org.apache.http.nio.reactor.IOReactorException;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class Client {
   private final ClientOptions options;
@@ -20,54 +28,50 @@ public class Client {
   }
 
   public Pair<ClientStatistics, LetterHistogram> run() {
-    final CloseableHttpClient client = createHttpClient();
-    final ClientTask[] tasks = createTasks(client);
-    executeTasks(tasks);
-    return extractResults(tasks);
+    try (final CloseableHttpAsyncClient httpClient = createHttpClient()) {
+      final List<ClientStatistics> statisticsList = Collections.synchronizedList(new ArrayList<>());
+      final List<LetterHistogram> histogramsList = Collections.synchronizedList(new ArrayList<>());
+      final ThreadLocal<ClientStatistics> localStatistics = ThreadLocal.withInitial(() -> {
+        final ClientStatistics statistics = new ClientStatistics();
+        statisticsList.add(statistics);
+        return statistics;
+      });
+      final ThreadLocal<LetterHistogram> localHistogram = ThreadLocal.withInitial(() -> {
+        final LetterHistogram histogram = new LetterHistogram();
+        histogramsList.add(histogram);
+        return histogram;
+      });
+
+      ExecutorService executor = Executors.newFixedThreadPool(options.getNumOfThreads());
+      final CountDownLatch latch = new CountDownLatch(options.getNumOfRequests());
+      final HttpGet request = new HttpGet(options.getUri());
+      final FutureCallback<HttpResponse> callback = new ClientCallback(executor, localStatistics, localHistogram, latch);
+      for (long i = 0; i < options.getNumOfRequests(); ++i) {
+        httpClient.execute(request, callback);
+      }
+      latch.await();
+      executor.shutdown();
+      executor.awaitTermination(1000, TimeUnit.DAYS);
+
+      final ClientStatistics statistics = ClientStatistics.combine(statisticsList);
+      final LetterHistogram histogram = LetterHistogram.combine(histogramsList);
+      return Pair.of(statistics, histogram);
+    } catch (final Exception ex) {
+      throw new RuntimeException("Client failure", ex);
+    }
   }
 
-  private CloseableHttpClient createHttpClient() {
-    final PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+  private CloseableHttpAsyncClient createHttpClient() throws IOReactorException {
+    final ConnectingIOReactor reactor;
+    reactor = new DefaultConnectingIOReactor(IOReactorConfig.DEFAULT);
+    final PoolingNHttpClientConnectionManager connectionManager = new PoolingNHttpClientConnectionManager(reactor);
     connectionManager.setMaxTotal(options.getNumOfConnections());
     connectionManager.setDefaultMaxPerRoute(options.getNumOfConnections());
-    return HttpClients.custom().setConnectionManager(connectionManager).build();
+    final CloseableHttpAsyncClient httpClient = HttpAsyncClients.custom()
+        .setConnectionManager(connectionManager)
+        .build();
+    httpClient.start();
+    return httpClient;
   }
 
-  // To have n busy connections we have to have n tasks running in n threads.
-  // This is bad, but it is constraint of blockin I/O model.
-  private ClientTask[] createTasks(CloseableHttpClient client) {
-    final HttpGet request = new HttpGet(options.getUri());
-    final AtomicLong outstandingRequests = new AtomicLong(options.getNumOfRequests());
-    final ClientTask[] tasks = new ClientTask[options.getNumOfConnections()];
-    Arrays.setAll(tasks, i -> new ClientTask(client, request, outstandingRequests));
-    return tasks;
-  }
-
-  private void executeTasks(ClientTask[] tasks) {
-    final ExecutorService executor = Executors.newFixedThreadPool(tasks.length);
-    for (final ClientTask task : tasks) {
-      executor.execute(task);
-    }
-
-    executor.shutdown();
-    try {
-      // ridicusly long timeout - if you want to terminate program, just press Ctrl+C
-      executor.awaitTermination(1000L, TimeUnit.DAYS);
-    } catch (final InterruptedException e) { }
-  }
-
-  private Pair<ClientStatistics, LetterHistogram> extractResults(ClientTask[] tasks) {
-    final ClientStatistics statistics = ClientStatistics.combine(
-      Arrays.stream(tasks)
-        .map(ClientTask::getStatistics)
-        .toArray(size -> new ClientStatistics[size])
-    );
-    final LetterHistogram histogram = LetterHistogram.combine(
-        Arrays.stream(tasks)
-          .map(ClientTask::getHistogram)
-          .toArray(size -> new LetterHistogram[size])
-    );
-
-    return Pair.of(statistics, histogram);
-  }
 }

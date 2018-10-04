@@ -7,11 +7,11 @@ public class ClientStatistics {
   private long successes = 0;
   private long errors = 0;
 
-  void registerSuccess() {
+  public synchronized void registerSuccess() {
     ++successes;
   }
 
-  void registerError() {
+  public synchronized void registerError() {
     ++errors;
   }
 
@@ -19,9 +19,9 @@ public class ClientStatistics {
     return successes + errors;
   }
 
-  public static ClientStatistics combine(final ClientStatistics... statistics) {
+  public static ClientStatistics combine(final Iterable<ClientStatistics> statisticsCollection) {
     final ClientStatistics result = new ClientStatistics();
-    for (final ClientStatistics single : statistics) {
+    for (final ClientStatistics single : statisticsCollection) {
       result.successes += single.successes;
       result.errors += single.errors;
     }

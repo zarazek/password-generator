@@ -48,7 +48,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
+			<artifactId>httpasyncclient</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>

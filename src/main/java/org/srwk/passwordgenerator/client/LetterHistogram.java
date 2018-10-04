@@ -16,7 +16,7 @@ public class LetterHistogram {
     this(new long[NUM_OF_LETTERS], new long[NUM_OF_LETTERS]);
   }
 
-  public void addString(final String str) {
+  public synchronized void addString(final String str) {
     final char[] chars = str.toCharArray();
     for (int i = 0; i < chars.length; ++i) {
       final char c = chars[i];
@@ -30,7 +30,7 @@ public class LetterHistogram {
     }
   }
 
-  public static LetterHistogram combine(final LetterHistogram... histograms) {
+  public static LetterHistogram combine(final Iterable<LetterHistogram> histograms) {
     final long[] combinedUpperCase = new long[NUM_OF_LETTERS];
     final long[] combinedLowerCase = new long[NUM_OF_LETTERS];
     for (final LetterHistogram histogram : histograms) {
