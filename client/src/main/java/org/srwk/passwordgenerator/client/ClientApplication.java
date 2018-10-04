@@ -2,7 +2,6 @@ package org.srwk.passwordgenerator.client;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
-import org.springframework.lang.Nullable;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -82,7 +81,7 @@ public class ClientApplication {
 
   private static void parseOption(final ClientOptions.ClientOptionsBuilder builder,
                                   final String optName,
-                                  final @Nullable String optValueStr) throws InvalidCommandLineException {
+                                  final String optValueStr) throws InvalidCommandLineException {
     final BiConsumer<ClientOptions.ClientOptionsBuilder, Integer> setter = OPTIONS_PARSERS.get(optName);
     if (setter == null) {
       throw new InvalidCommandLineException(String.format("Unknown option '%s'", optName));
