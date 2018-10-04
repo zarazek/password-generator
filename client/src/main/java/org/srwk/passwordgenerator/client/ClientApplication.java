@@ -26,7 +26,7 @@ public class ClientApplication {
     }
 
     System.out.println(String.format(
-        "Running %d requests over %d simulataneous connections using %d threads on %s",
+        "Running %d requests over %d simulataneous connections using %d threads for histogram calculation on %s",
         options.getNumOfRequests(),
         options.getNumOfConnections(),
         options.getNumOfThreads(),
